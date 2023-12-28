@@ -24,8 +24,6 @@ void colorToBlurConversion(unsigned char* Pout, unsigned
 			for (int blurCol = -BLUR_SIZE; blurCol < BLUR_SIZE + 1; ++blurCol) {
 				int curRow = Row + blurRow;
 				int curCol = Col + blurCol;
-
-			
 				if (curRow > -1 && curRow < height && curCol > -1 && curCol < width) {
 					int curOffset = (curRow * width + curCol) * CHANNELS;
 					pixValsr += Pin[curOffset];
@@ -35,11 +33,9 @@ void colorToBlurConversion(unsigned char* Pout, unsigned
 				}
 			}
 		}
-
 		Pout[Offset] = (unsigned char)(pixValsr / pixels);
 		Pout[Offset + 1] = (unsigned char)(pixValsg / pixels);
 		Pout[Offset + 2] = (unsigned char)(pixValsb / pixels);
-
 	}
 }
 int main(int arc, char** argv) {
@@ -48,14 +44,13 @@ int main(int arc, char** argv) {
 	//unsigned char* Pout = stbi_load(argv[1], &width, &height, &rgb, 3);
 	unsigned char* ptrImageData = NULL;
 	unsigned char* ptrImageDataOut = NULL;
+	cudaMalloc(&ptrImageDataOut, width * height * CHANNELS);
 	cudaMalloc(&ptrImageData, width * height * CHANNELS);
 	cudaMemcpy(ptrImageData, Pin, width * height * CHANNELS, cudaMemcpyHostToDevice);
-	cudaMalloc(&ptrImageDataOut, width * height * CHANNELS);
-	cudaMemcpy(ptrImageDataOut, Pin, width * height * CHANNELS, cudaMemcpyHostToDevice);
 
-	colorToBlurConversion << <dim3((width / 32), (height / 32)), dim3(32, 32) >> > (ptrImageData, ptrImageDataOut, width, height);
+	colorToBlurConversion << <dim3((width / 16), (height / 16)), dim3(16, 16) >> > (ptrImageDataOut, ptrImageData, width, height);
 
-	cudaMemcpy(Pin, ptrImageData, width * height * CHANNELS, cudaMemcpyDeviceToHost);
+	cudaMemcpy(Pin, ptrImageDataOut, width * height * CHANNELS, cudaMemcpyDeviceToHost);
 	std::string NewImageFile = argv[1];
 	NewImageFile = NewImageFile.substr(0, NewImageFile.find_last_of('.')) + "toBlurr.png";
 	stbi_write_png(NewImageFile.c_str(), width, height, 3, Pin, 3 * width);
